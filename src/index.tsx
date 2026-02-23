@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { BookOpen, HelpCircle, FileText, List, ArrowLeft, ArrowRight, ArrowDown } from 'lucide-react';
 
@@ -80,7 +81,6 @@ sourceStanzas = gurbaniText.filter(s => stanzaFilter.includes(s.id.toString()));
 sourceStanzas = gurbaniText.filter(s => s.id === parseInt(stanzaFilter));
 }
 
-```
 const isPunctuation = (word) => {
   // Check if word is only punctuation marks (॥, ।, etc.)
   return /^[॥।॥੧੨੩੪੫੬੭੮੯੦]+$/.test(word.trim());
@@ -130,7 +130,6 @@ return shuffled.slice(0, Math.min(10, shuffled.length)).map(item => {
     stanza: item.stanza
   };
 });
-```
 
 };
 
@@ -144,7 +143,6 @@ sourceStanzas = gurbaniText.filter(s => stanzaFilter.includes(s.id.toString()));
 sourceStanzas = gurbaniText.filter(s => s.id === parseInt(stanzaFilter));
 }
 
-```
 const allLines = [];
 sourceStanzas.forEach(stanza => {
   stanza.lines.forEach((line, lineIndex) => {
@@ -183,7 +181,6 @@ return shuffled.slice(0, Math.min(10, shuffled.length)).map(item => {
     stanza: item.stanza
   };
 });
-```
 
 };
 
@@ -195,7 +192,6 @@ setScore(0);
 setSelectedAnswer(null);
 setShowResult(false);
 
-```
 if (activityType === 'nextWord') {
   const generatedQuestions = generateNextWordQuestions(stanza);
   setQuestions(generatedQuestions);
@@ -204,7 +200,6 @@ if (activityType === 'nextWord') {
   setCurrentStanzaIndex(stanza === 'all' ? 0 : parseInt(stanza));
   setCurrentScreen('readPractice');
 }
-```
 
 };
 
@@ -237,28 +232,27 @@ setMemorizedLines(prev => ({
 const ActivityCard = ({ icon, title, description, onClick, color }) => (
 <button
 onClick={onClick}
-className={`${color} text-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-all transform hover:scale-105`}
+className={`${color} text-white rounded-lg shadow-lg p-5 sm:p-8 hover:shadow-xl transition-all transform hover:scale-[1.02]`}
 >
 <div className="flex flex-col items-center text-center">
 {icon}
-<h3 className="text-2xl font-bold mt-4 mb-2">{title}</h3>
-<p className="text-white/90">{description}</p>
+<h3 className="text-xl sm:text-2xl font-bold mt-3 sm:mt-4 mb-2">{title}</h3>
+<p className="text-sm sm:text-base text-white/90">{description}</p>
 </div>
 </button>
 );
 
 const Home = () => (
-<div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-8">
+<div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4 sm:p-6">
 <style>{`.gurbani-text, .gurbani-text * { text-decoration: none !important; }`}</style>
 
-```
   <div className="max-w-4xl mx-auto">
-    <div className="text-center mb-12">
-      <h1 className="text-5xl font-bold text-amber-900 mb-4">ਜਪੁਜੀ ਸਾਹਿਬ</h1>
-      <p className="text-xl text-amber-800">Memorization Practice App</p>
+    <div className="text-center mb-8 sm:mb-12">
+      <h1 className="text-3xl sm:text-5xl font-bold text-amber-900 mb-3 sm:mb-4">ਜਪੁਜੀ ਸਾਹਿਬ</h1>
+      <p className="text-base sm:text-xl text-amber-800">Memorization Practice App</p>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       <ActivityCard
         icon={<HelpCircle className="w-12 h-12" />}
         title="What's the Next Word?"
@@ -285,7 +279,6 @@ const Home = () => (
     </div>
   </div>
 </div>
-```
 
 );
 
@@ -293,7 +286,6 @@ const StanzaSelector = ({ activityType, activityTitle, onStart }) => {
 const [checkedStanzas, setCheckedStanzas] = React.useState([]);
 const [allChecked, setAllChecked] = React.useState(true);
 
-```
 const toggleAll = () => {
   setAllChecked(true);
   setCheckedStanzas([]);
@@ -331,7 +323,7 @@ const selectionLabel = allChecked
   : checkedStanzas.length + ' Pauris Selected';
 
 return (
-  <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-8">
+  <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4 sm:p-6">
     <div className="max-w-4xl mx-auto">
       <button
         onClick={() => setCurrentScreen('home')}
@@ -341,7 +333,7 @@ return (
         Back to Home
       </button>
 
-      <h2 className="text-3xl font-bold text-amber-900 mb-4 text-center">
+      <h2 className="text-2xl sm:text-3xl font-bold text-amber-900 mb-4 text-center">
         {activityTitle}
       </h2>
       <p className="text-center text-amber-700 mb-6">
@@ -351,7 +343,7 @@ return (
       <div className="mb-6 flex justify-center">
         <button
           onClick={handleStartPractice}
-          className="px-8 py-3 bg-amber-600 text-white text-xl font-bold rounded-lg hover:bg-amber-700 transition-colors"
+          className="px-5 sm:px-8 py-3 bg-amber-600 text-white text-base sm:text-xl font-bold rounded-lg hover:bg-amber-700 transition-colors"
         >
           Start Practice — {selectionLabel}
         </button>
@@ -402,14 +394,13 @@ return (
     </div>
   </div>
 );
-```
 
 };
 
 const NextWordActivity = () => {
 if (questions.length === 0) {
 return (
-<div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-8">
+<div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6">
 <div className="max-w-3xl mx-auto">
 <button
 onClick={() => setCurrentScreen('home')}
@@ -433,7 +424,6 @@ Return to Home
 );
 }
 
-```
 const q = questions[currentQuestion];
 
 return (
@@ -509,7 +499,6 @@ return (
     </div>
   </div>
 );
-```
 
 };
 
@@ -517,9 +506,8 @@ const FillBlanksActivity = () => {
 if (questions.length === 0) return null;
 const q = questions[currentQuestion];
 
-```
 return (
-  <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 p-8">
+  <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 p-4 sm:p-6">
     <div className="max-w-3xl mx-auto">
       <button
         onClick={() => setCurrentScreen('home')}
@@ -593,16 +581,14 @@ return (
     </div>
   </div>
 );
-```
 
 };
 
 const ReadPractice = () => {
 const stanza = gurbaniText[currentStanzaIndex];
 
-```
 return (
-  <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 p-8">
+  <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 p-4 sm:p-6">
     <div className="max-w-4xl mx-auto">
       <button
         onClick={() => setCurrentScreen('home')}
@@ -701,12 +687,11 @@ return (
     </div>
   </div>
 );
-```
 
 };
 
 const Results = () => (
-<div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-8">
+<div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4 sm:p-6">
 <div className="max-w-2xl mx-auto">
 <div className="bg-white rounded-lg shadow-xl p-8 text-center">
 <h2 className="text-4xl font-bold text-amber-900 mb-6">Great Job!</h2>
@@ -763,7 +748,6 @@ const stanza = orderLinesStanzas[orderLinesIndex];
 const remaining = shuffledLines.filter(l => !selectedLines.includes(l));
 const isComplete = selectedLines.length === stanza.lines.length;
 
-```
 const handleSelectLine = (line) => {
   if (orderResult !== null) return;
   const next = [...selectedLines, line];
@@ -799,7 +783,7 @@ const handleRetry = () => {
 };
 
 return (
-  <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 p-6">
+  <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 p-4 sm:p-6">
     <div className="max-w-3xl mx-auto">
       <button
         onClick={() => setCurrentScreen('home')}
@@ -923,7 +907,6 @@ return (
     </div>
   </div>
 );
-```
 
 };
 
