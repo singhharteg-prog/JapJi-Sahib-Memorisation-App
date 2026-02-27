@@ -1,6 +1,8 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, HelpCircle, FileText, List, ArrowLeft, ArrowRight, ArrowDown } from 'lucide-react';
+
+const READ_PRACTICE_STORAGE_KEY = 'japji-read-practice-progress-v1';
 
 const gurbaniText = [
 { id: 0, stanza: "ਮੂਲ ਮੰਤਰ", lines: ["ੴ ਸਤਿਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ਅਕਾਲ ਮੂਰਤਿ ਅਜੂਨੀ ਸੈਭੰ ਗੁਰਪ੍ਰਸਾਦਿ ॥", "॥ ਜਪੁ ॥", "ਆਦਿ ਸਚੁ ਜੁਗਾਦਿ ਸਚੁ ॥", "ਹੈ ਭੀ ਸਚੁ ਨਾਨਕ ਹੋਸੀ ਭੀ ਸਚੁ ॥੧॥"] },
@@ -58,6 +60,9 @@ const [showResult, setShowResult] = useState(false);
 
 const [currentStanzaIndex, setCurrentStanzaIndex] = useState(0);
 const [memorizedLines, setMemorizedLines] = useState({});
+const [visitedPauris, setVisitedPauris] = useState({});
+const [reviewOnlyMode, setReviewOnlyMode] = useState(false);
+const [readProgressHydrated, setReadProgressHydrated] = useState(false);
 const [orderLinesStanzas, setOrderLinesStanzas] = useState([]);
 const [orderLinesIndex, setOrderLinesIndex] = useState(0);
 const [shuffledLines, setShuffledLines] = useState([]);
@@ -70,6 +75,40 @@ textDecorationLine: 'none',
 textDecorationStyle: 'none',
 textDecorationColor: 'transparent'
 };
+
+useEffect(() => {
+  try {
+    const saved = localStorage.getItem(READ_PRACTICE_STORAGE_KEY);
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    if (parsed.memorizedLines && typeof parsed.memorizedLines === 'object') {
+      setMemorizedLines(parsed.memorizedLines);
+    }
+    if (parsed.visitedPauris && typeof parsed.visitedPauris === 'object') {
+      setVisitedPauris(parsed.visitedPauris);
+    }
+    if (Number.isInteger(parsed.currentStanzaIndex)) {
+      const bounded = Math.max(0, Math.min(gurbaniText.length - 1, parsed.currentStanzaIndex));
+      setCurrentStanzaIndex(bounded);
+    }
+  } catch {
+    // ignore malformed localStorage payload
+  } finally {
+    setReadProgressHydrated(true);
+  }
+}, []);
+
+useEffect(() => {
+  if (!readProgressHydrated) return;
+  try {
+    localStorage.setItem(
+      READ_PRACTICE_STORAGE_KEY,
+      JSON.stringify({ memorizedLines, visitedPauris, currentStanzaIndex })
+    );
+  } catch {
+    // ignore localStorage failures
+  }
+}, [memorizedLines, visitedPauris, currentStanzaIndex, readProgressHydrated]);
 
 const generateNextWordQuestions = (stanzaFilter) => {
 let sourceStanzas;
@@ -197,7 +236,10 @@ if (activityType === 'nextWord') {
   setQuestions(generatedQuestions);
   setCurrentScreen('nextWord');
 } else if (activityType === 'readPractice') {
-  setCurrentStanzaIndex(stanza === 'all' ? 0 : parseInt(stanza));
+  if (stanza !== 'all') {
+    setCurrentStanzaIndex(parseInt(stanza));
+  }
+  setReviewOnlyMode(false);
   setCurrentScreen('readPractice');
 }
 
@@ -227,6 +269,20 @@ setMemorizedLines(prev => ({
 ...prev,
 [key]: !prev[key]
 }));
+};
+
+const clearReadPracticeProgress = () => {
+  const shouldClear = window.confirm('Reset Read & Practice progress? This will clear saved checkboxes and pauri progress.');
+  if (!shouldClear) return;
+  setMemorizedLines({});
+  setVisitedPauris({});
+  setReviewOnlyMode(false);
+  setCurrentStanzaIndex(0);
+  try {
+    localStorage.removeItem(READ_PRACTICE_STORAGE_KEY);
+  } catch {
+    // ignore localStorage failures
+  }
 };
 
 const ActivityCard = ({ icon, title, description, onClick, color }) => (
@@ -586,6 +642,78 @@ return (
 
 const ReadPractice = () => {
 const stanza = gurbaniText[currentStanzaIndex];
+const totalPauris = gurbaniText.length;
+
+const stanzaHasUncheckedLines = (stanzaIndex) => {
+  const target = gurbaniText[stanzaIndex];
+  return target.lines.some((_, lineIndex) => !memorizedLines[`${target.id}-${lineIndex}`]);
+};
+
+const getNeedsReviewIndexes = (visitedMap = visitedPauris) =>
+  gurbaniText
+    .map((s, index) => ({ id: s.id, index }))
+    .filter(item => visitedMap[item.id] && stanzaHasUncheckedLines(item.index))
+    .map(item => item.index);
+
+const learnedCount = gurbaniText.filter((s, index) => visitedPauris[s.id] && !stanzaHasUncheckedLines(index)).length;
+const learningCount = gurbaniText.filter((s, index) => visitedPauris[s.id] && stanzaHasUncheckedLines(index)).length;
+const notStartedCount = totalPauris - learnedCount - learningCount;
+const learnedPct = Math.round((learnedCount / totalPauris) * 100);
+const learningPct = Math.round((learningCount / totalPauris) * 100);
+const notStartedPct = Math.round((notStartedCount / totalPauris) * 100);
+
+const markCurrentPauriVisited = () => {
+  const current = gurbaniText[currentStanzaIndex];
+  return { ...visitedPauris, [current.id]: true };
+};
+
+const handleNext = () => {
+  const updatedVisited = markCurrentPauriVisited();
+  setVisitedPauris(updatedVisited);
+
+  if (reviewOnlyMode) {
+    const reviewIndexes = getNeedsReviewIndexes(updatedVisited);
+    if (reviewIndexes.length === 0) {
+      setReviewOnlyMode(false);
+      return;
+    }
+    const currentReviewPosition = reviewIndexes.indexOf(currentStanzaIndex);
+    if (currentReviewPosition === -1) {
+      setCurrentStanzaIndex(reviewIndexes[0]);
+      return;
+    }
+    const nextPosition = Math.min(reviewIndexes.length - 1, currentReviewPosition + 1);
+    setCurrentStanzaIndex(reviewIndexes[nextPosition]);
+    return;
+  }
+
+  setCurrentStanzaIndex(Math.min(gurbaniText.length - 1, currentStanzaIndex + 1));
+};
+
+const handlePrevious = () => {
+  if (reviewOnlyMode) {
+    const reviewIndexes = getNeedsReviewIndexes();
+    if (reviewIndexes.length === 0) {
+      setReviewOnlyMode(false);
+      return;
+    }
+    const currentReviewPosition = reviewIndexes.indexOf(currentStanzaIndex);
+    if (currentReviewPosition <= 0) {
+      setCurrentStanzaIndex(reviewIndexes[0]);
+      return;
+    }
+    setCurrentStanzaIndex(reviewIndexes[currentReviewPosition - 1]);
+    return;
+  }
+  setCurrentStanzaIndex(Math.max(0, currentStanzaIndex - 1));
+};
+
+const needsReviewIndexes = getNeedsReviewIndexes();
+const isAtReviewStart = reviewOnlyMode && needsReviewIndexes.indexOf(currentStanzaIndex) <= 0;
+const isAtReviewEnd =
+  reviewOnlyMode &&
+  (needsReviewIndexes.length === 0 || needsReviewIndexes.indexOf(currentStanzaIndex) === needsReviewIndexes.length - 1);
+const canStartReview = needsReviewIndexes.length > 0;
 
 return (
   <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 p-4 sm:p-6">
@@ -604,12 +732,84 @@ return (
         </h2>
 
         <div className="mb-6">
+          <div className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50">
+            <div className="flex flex-wrap gap-2">
+              {gurbaniText.map((s, index) => {
+                const isVisited = !!visitedPauris[s.id];
+                const isLearning = isVisited && stanzaHasUncheckedLines(index);
+                const isLearned = isVisited && !isLearning;
+                const stateClass = isLearned
+                  ? 'bg-green-100 text-green-900 border-green-300'
+                  : isLearning
+                  ? 'bg-amber-100 text-amber-900 border-amber-300'
+                  : 'bg-gray-200 text-gray-700 border-gray-300';
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setReviewOnlyMode(false);
+                      setCurrentStanzaIndex(index);
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-full border font-semibold transition-colors hover:brightness-95 ${
+                      index === currentStanzaIndex ? 'ring-2 ring-green-700 ring-offset-1' : ''
+                    } ${stateClass}`}
+                    title={s.stanza}
+                  >
+                    {s.stanza}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+            <div className="text-green-700 font-semibold">Learned: {learnedPct}%</div>
+            <div className="text-amber-700 font-semibold">Learning: {learningPct}%</div>
+            <div className="text-gray-600 font-semibold">Not Started: {notStartedPct}%</div>
+          </div>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-3">
+          <button
+            onClick={() => {
+              if (!canStartReview) return;
+              setReviewOnlyMode(true);
+              if (!needsReviewIndexes.includes(currentStanzaIndex)) {
+                setCurrentStanzaIndex(needsReviewIndexes[0]);
+              }
+            }}
+            disabled={!canStartReview}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              canStartReview ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Practice Learning Pauris
+          </button>
+          {reviewOnlyMode && (
+            <button
+              onClick={() => setReviewOnlyMode(false)}
+              className="px-4 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition-colors"
+            >
+              Exit Review Mode
+            </button>
+          )}
+          <button
+            onClick={clearReadPracticeProgress}
+            className="px-4 py-2 rounded-lg bg-white text-green-800 border border-green-300 hover:bg-green-50 transition-colors"
+          >
+            Reset Saved Progress
+          </button>
+        </div>
+
+        <div className="mb-6">
           <label className="block text-green-800 font-semibold mb-2">
             Jump to Pauri:
           </label>
           <select
             value={currentStanzaIndex}
-            onChange={(e) => setCurrentStanzaIndex(parseInt(e.target.value))}
+            onChange={(e) => {
+              setReviewOnlyMode(false);
+              setCurrentStanzaIndex(parseInt(e.target.value));
+            }}
             className="w-full p-3 border-2 border-green-300 rounded-lg focus:border-green-500 focus:outline-none text-lg"
           >
             {gurbaniText.map((s, idx) => (
@@ -658,10 +858,10 @@ return (
 
         <div className="flex justify-between gap-4">
           <button
-            onClick={() => setCurrentStanzaIndex(Math.max(0, currentStanzaIndex - 1))}
-            disabled={currentStanzaIndex === 0}
+            onClick={handlePrevious}
+            disabled={reviewOnlyMode ? isAtReviewStart : currentStanzaIndex === 0}
             className={`flex items-center px-6 py-3 rounded-lg transition-colors ${
-              currentStanzaIndex === 0
+              (reviewOnlyMode ? isAtReviewStart : currentStanzaIndex === 0)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-green-600 text-white hover:bg-green-700'
             }`}
@@ -671,15 +871,15 @@ return (
           </button>
 
           <button
-            onClick={() => setCurrentStanzaIndex(Math.min(gurbaniText.length - 1, currentStanzaIndex + 1))}
-            disabled={currentStanzaIndex === gurbaniText.length - 1}
+            onClick={handleNext}
+            disabled={reviewOnlyMode ? isAtReviewEnd : currentStanzaIndex === gurbaniText.length - 1}
             className={`flex items-center px-6 py-3 rounded-lg transition-colors ${
-              currentStanzaIndex === gurbaniText.length - 1
+              (reviewOnlyMode ? isAtReviewEnd : currentStanzaIndex === gurbaniText.length - 1)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-green-600 text-white hover:bg-green-700'
             }`}
           >
-            Next
+            {reviewOnlyMode ? 'Next Learning Pauri' : 'Next'}
             <ArrowRight className="w-5 h-5 ml-2" />
           </button>
         </div>
